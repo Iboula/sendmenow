@@ -98,6 +98,54 @@ app.post('/api/users', (req, res) => {
   });
 });
 
+// API Route for user login/authentication
+app.post('/api/login', (req, res) => {
+  const { userName, userPassword } = req.body;
+
+  // Validate input
+  if (!userName || !userPassword) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Username and password are required' 
+    });
+  }
+
+  // Query user from database
+  // Note: In production, passwords should be hashed and compared securely
+  const query = 'SELECT * FROM users WHERE user_name = ? AND user_password = ?';
+  
+  db.query(query, [userName, userPassword], (err, results) => {
+    if (err) {
+      console.error('Error querying user:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Error during login',
+        error: err.message 
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid username or password' 
+      });
+    }
+
+    // Login successful
+    const user = results[0];
+    res.status(200).json({ 
+      success: true, 
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        userName: user.user_name || user.userName,
+        userEmail: user.user_mail || user.userEmail
+      },
+      token: `token_${user.id}_${Date.now()}` // Simple token for demo (use JWT in production)
+    });
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running' });

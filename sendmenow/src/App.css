@@ -117,3 +117,51 @@
   background-color: #f44336;
   color: white;
 }
+
+/* Welcome/Dashboard Styles */
+.welcome-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 30px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+.welcome-container p {
+  font-size: 18px;
+  margin: 5px 0;
+}
+
+/* Switch link styles */
+.switch-link {
+  margin-top: 10px;
+  width: 100%;
+  text-align: center;
+}
+
+.switch-link p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #61dafb;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 14px;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+}
+
+.link-button:hover {
+  color: #4fa8c5;
+  text-decoration: none;
+}

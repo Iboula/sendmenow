@@ -1,0 +1,24 @@
+{
+  "name": "sendmenow_project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ggexova-sketch/sendmenow_project.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ggexova-sketch/sendmenow_project/issues"
+  },
+  "homepage": "https://github.com/ggexova-sketch/sendmenow_project#readme",
+  "dependencies": {
+    "@emailjs/browser": "^4.4.1",
+    "laravel-echo": "^2.2.6",
+    "pusher-js": "^8.4.0"
+  }
+}
