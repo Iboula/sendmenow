@@ -4,7 +4,8 @@ const mysql = require('mysql2');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { sendEmailNotification } = require('./utils/emailService');
+const crypto = require('crypto');
+const { sendEmailNotification, emailTemplates } = require('./utils/emailService');
 require('dotenv').config();
 
 const app = express();
@@ -212,83 +213,36 @@ app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
     const emailSubject = subject || 'Photo from SendMeNow';
     const emailMessage = message;
     const greeting = senderName ? `Hello from ${senderName}!` : 'Hello!';
-    const details = `<p><strong>Message:</strong></p><p>${emailMessage}</p>`;
+    const details = `<p><strong>Message:</strong></p><p>${emailMessage}</p><p>Please see the attached photo.</p>`;
 
-    // Send email with photo attachment
+    // Send email with photo attachment using emailService
     try {
-      const nodemailer = require('nodemailer');
-      const emailConfig = {
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: process.env.EMAIL_PORT || 587,
-        secure: process.env.EMAIL_SECURE === 'true',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD || process.env.EMAIL_APP_PASSWORD
-        }
-      };
-
-      // Create transporter
-      const transporter = nodemailer.createTransport({
-        host: emailConfig.host,
-        port: emailConfig.port,
-        secure: emailConfig.secure,
-        auth: emailConfig.auth.user ? emailConfig.auth : undefined
-      });
-
-      // Load email template
-      const templatePath = path.join(__dirname, 'templates/emailTemplate.html');
-      let htmlContent = '';
-      
-      if (fs.existsSync(templatePath)) {
-        let template = fs.readFileSync(templatePath, 'utf8');
-        htmlContent = template
-          .replace(/{{subject}}/g, emailSubject)
-          .replace(/{{greeting}}/g, greeting)
-          .replace(/{{message}}/g, emailMessage)
-          .replace(/{{details}}/g, details)
-          .replace(/{{year}}/g, new Date().getFullYear());
-      } else {
-        // Fallback HTML if template doesn't exist
-        htmlContent = `
-          <html>
-            <body>
-              <h2>${greeting}</h2>
-              <p>${emailMessage}</p>
-              <p>Please see the attached photo.</p>
-            </body>
-          </html>
-        `;
-      }
-
-      // Email options with attachment
-      const mailOptions = {
-        from: process.env.EMAIL_FROM || emailConfig.auth?.user || 'noreply@sendmenow.com',
+      const emailResult = await sendEmailNotification({
         to: recipientEmail,
         subject: emailSubject,
-        html: htmlContent,
-        text: `${greeting}\n\n${emailMessage}\n\nPlease see the attached photo.`,
+        greeting: greeting,
+        message: emailMessage,
+        details: details,
+        additionalInfo: 'Thank you for using SendMeNow!',
         attachments: [
           {
             filename: req.file.originalname,
             path: req.file.path
           }
         ]
-      };
-
-      // Send email
-      const info = await transporter.sendMail(mailOptions);
+      });
       
       // Clean up uploaded file after sending
       if (req.file && req.file.path) {
         fs.unlinkSync(req.file.path);
       }
 
-      console.log('Photo email sent successfully:', info.messageId);
+      console.log('Photo email sent successfully:', emailResult.messageId);
 
       res.status(200).json({
         success: true,
         message: 'Photo sent successfully!',
-        messageId: info.messageId
+        messageId: emailResult.messageId
       });
 
     } catch (emailError) {
@@ -301,7 +255,7 @@ app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
 
       return res.status(500).json({
         success: false,
-        message: 'Failed to send email. Please check your email configuration.',
+        message: emailError.message || 'Failed to send email. Please check your email configuration.',
         error: emailError.message
       });
     }
@@ -322,9 +276,214 @@ app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
   }
 });
 
+// API Route for forgot password
+app.post('/api/forgot-password', async (req, res) => {
+  const { userEmail } = req.body;
+
+  // Validate input
+  if (!userEmail) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Email is required' 
+    });
+  }
+
+  try {
+    // Check if user exists
+    const userQuery = 'SELECT * FROM users WHERE user_mail = ? OR userEmail = ?';
+    
+    db.query(userQuery, [userEmail, userEmail], async (err, results) => {
+      if (err) {
+        console.error('Error querying user:', err);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error processing request',
+          error: err.message 
+        });
+      }
+
+      // Always return success message for security (don't reveal if email exists)
+      if (results.length === 0) {
+        return res.status(200).json({ 
+          success: true, 
+          message: 'If an account with that email exists, a password reset link has been sent.' 
+        });
+      }
+
+      const user = results[0];
+      const userName = user.user_name || user.userName;
+      const userEmailValue = user.user_mail || user.userEmail;
+
+      // Generate secure reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
+
+      // Delete any existing tokens for this user
+      const deleteQuery = 'DELETE FROM password_reset_tokens WHERE userEmail = ?';
+      db.query(deleteQuery, [userEmailValue], (deleteErr) => {
+        if (deleteErr) {
+          console.error('Error deleting old tokens:', deleteErr);
+        }
+
+        // Insert new token
+        const insertQuery = 'INSERT INTO password_reset_tokens (userEmail, token, expiresAt) VALUES (?, ?, ?)';
+        db.query(insertQuery, [userEmailValue, resetToken, expiresAt], async (insertErr) => {
+          if (insertErr) {
+            console.error('Error inserting reset token:', insertErr);
+            return res.status(500).json({ 
+              success: false, 
+              message: 'Error generating reset token',
+              error: insertErr.message 
+            });
+          }
+
+          // Generate reset link
+          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+          const resetLink = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(userEmailValue)}`;
+
+          // Send password reset email
+          try {
+            const emailData = emailTemplates.passwordReset(userName, resetLink);
+            emailData.to = userEmailValue;
+
+            await sendEmailNotification(emailData);
+
+            res.status(200).json({ 
+              success: true, 
+              message: 'Password reset link has been sent to your email.' 
+            });
+          } catch (emailError) {
+            console.error('Error sending password reset email:', emailError);
+            // Still return success to user, but log the error
+            res.status(200).json({ 
+              success: true, 
+              message: 'If an account with that email exists, a password reset link has been sent.' 
+            });
+          }
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Error in forgot password:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error processing request',
+      error: error.message 
+    });
+  }
+});
+
+// API Route for reset password
+app.post('/api/reset-password', (req, res) => {
+  const { token, userEmail, newPassword } = req.body;
+
+  // Validate input
+  if (!token || !userEmail || !newPassword) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Token, email, and new password are required' 
+    });
+  }
+
+  // Validate password length
+  if (newPassword.length < 6) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Password must be at least 6 characters long' 
+    });
+  }
+
+  // Verify token
+  const tokenQuery = 'SELECT * FROM password_reset_tokens WHERE token = ? AND userEmail = ? AND expiresAt > NOW()';
+  
+  db.query(tokenQuery, [token, userEmail], (err, results) => {
+    if (err) {
+      console.error('Error verifying token:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Error verifying reset token',
+        error: err.message 
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid or expired reset token' 
+      });
+    }
+
+    // Update user password
+    const updateQuery = 'UPDATE users SET user_password = ? WHERE (user_mail = ? OR userEmail = ?)';
+    
+    db.query(updateQuery, [newPassword, userEmail, userEmail], (updateErr, updateResults) => {
+      if (updateErr) {
+        console.error('Error updating password:', updateErr);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error updating password',
+          error: updateErr.message 
+        });
+      }
+
+      if (updateResults.affectedRows === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'User not found' 
+        });
+      }
+
+      // Delete used token
+      const deleteQuery = 'DELETE FROM password_reset_tokens WHERE token = ?';
+      db.query(deleteQuery, [token], (deleteErr) => {
+        if (deleteErr) {
+          console.error('Error deleting used token:', deleteErr);
+          // Don't fail the request if token deletion fails
+        }
+
+        res.status(200).json({ 
+          success: true, 
+          message: 'Password has been reset successfully. You can now login with your new password.' 
+        });
+      });
+    });
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running' });
+});
+
+// Email configuration check endpoint
+app.get('/api/email-config', (req, res) => {
+  const { verifyEmailConfig } = require('./utils/emailService');
+  const config = verifyEmailConfig();
+  
+  // Don't expose sensitive info in production
+  if (process.env.NODE_ENV === 'production') {
+    res.json({
+      configured: config.configured,
+      message: config.configured 
+        ? 'Email is configured' 
+        : 'Email configuration is incomplete. Please check your .env file.'
+    });
+  } else {
+    res.json({
+      configured: config.configured,
+      hasAuth: config.hasAuth,
+      hasHost: config.hasHost,
+      hasPort: config.hasPort,
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      from: config.from,
+      message: config.configured 
+        ? 'Email is configured correctly' 
+        : 'Email configuration is incomplete. Please set EMAIL_USER, EMAIL_PASSWORD, EMAIL_HOST, and EMAIL_PORT in your .env file.'
+    });
+  }
 });
 
 // Start server

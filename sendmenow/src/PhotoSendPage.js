@@ -45,6 +45,9 @@ function PhotoSendPage({ loggedInUser, onBack }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Capture form reference before async operation
+    const form = e.currentTarget;
+    
     if (!selectedPhoto) {
       setStatusMessage('Please select a photo');
       return;
@@ -86,8 +89,8 @@ function PhotoSendPage({ loggedInUser, onBack }) {
         setRecipientEmail('');
         setMessage('');
         setSubject('');
-        // Clear file input
-        e.target.reset();
+        // Clear file input using captured form reference
+        form.reset();
       } else {
         setStatusMessage(data.message || 'Failed to send photo');
       }

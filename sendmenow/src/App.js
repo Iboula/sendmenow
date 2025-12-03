@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import CredentialPage from './CredentialPage';
 import PhotoSendPage from './PhotoSendPage';
+import ForgotPasswordPage from './ForgotPasswordPage';
+import ResetPasswordPage from './ResetPasswordPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
@@ -15,6 +17,16 @@ function App() {
 
   // Check for existing authentication on component mount
   useEffect(() => {
+    // Check if we're on a reset password page
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('token');
+    const resetEmail = urlParams.get('email');
+    
+    if (resetToken && resetEmail) {
+      setCurrentPage('reset-password');
+      return;
+    }
+
     const savedUser = localStorage.getItem('user');
     const savedToken = localStorage.getItem('token');
     
@@ -134,6 +146,31 @@ function App() {
     );
   }
 
+  // Reset Password Page
+  if (currentPage === 'reset-password') {
+    return (
+      <ResetPasswordPage
+        onBack={() => {
+          setCurrentPage('login');
+          // Clear URL parameters
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }}
+      />
+    );
+  }
+
+  // Forgot Password Page
+  if (currentPage === 'forgot-password') {
+    return (
+      <ForgotPasswordPage
+        onBack={() => {
+          setCurrentPage('login');
+          setMessage('');
+        }}
+      />
+    );
+  }
+
   // Show CredentialPage (Login) if on login page
   if (currentPage === 'login') {
     return (
@@ -141,6 +178,10 @@ function App() {
         onLogin={handleLogin}
         onSwitchToRegister={() => {
           setCurrentPage('register');
+          setMessage('');
+        }}
+        onForgotPassword={() => {
+          setCurrentPage('forgot-password');
           setMessage('');
         }}
       />

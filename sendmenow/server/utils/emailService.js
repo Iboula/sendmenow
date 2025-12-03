@@ -19,22 +19,29 @@ let transporter = null;
 // Initialize email transporter
 function initializeTransporter() {
   if (!transporter) {
-    transporter = nodemailer.createTransport({
+    // Check if we have valid email credentials
+    const hasAuth = emailConfig.auth && emailConfig.auth.user && emailConfig.auth.pass;
+    
+    if (!hasAuth && process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️  Email credentials not configured. Email sending may fail.');
+      console.warn('   Please set EMAIL_USER and EMAIL_PASSWORD in your .env file');
+    }
+
+    const transporterConfig = {
       host: emailConfig.host,
       port: emailConfig.port,
       secure: emailConfig.secure,
-      auth: emailConfig.auth.user ? emailConfig.auth : undefined,
-      // For development/testing without real credentials
-      ...(process.env.NODE_ENV === 'development' && !emailConfig.auth.user ? {
-        // Use ethereal.email for testing
-        host: 'smtp.ethereal.email',
-        port: 587,
-        auth: {
-          user: 'test@ethereal.email',
-          pass: 'test'
-        }
-      } : {})
-    });
+    };
+
+    // Only add auth if credentials are provided
+    if (hasAuth) {
+      transporterConfig.auth = emailConfig.auth;
+    } else if (process.env.NODE_ENV === 'development') {
+      // For development without credentials, log a warning but don't fail
+      console.warn('⚠️  Running without email credentials. Emails will not be sent.');
+    }
+
+    transporter = nodemailer.createTransport(transporterConfig);
   }
   return transporter;
 }
@@ -103,7 +110,8 @@ async function sendEmailNotification(options) {
     details,
     buttonText,
     buttonUrl,
-    additionalInfo
+    additionalInfo,
+    attachments
   } = options;
 
   // Validate required fields
@@ -111,35 +119,68 @@ async function sendEmailNotification(options) {
     throw new Error('Missing required email fields: to, subject, and message are required');
   }
 
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(to)) {
+    throw new Error(`Invalid email address: ${to}`);
+  }
+
   try {
     // Initialize transporter
     const mailTransporter = initializeTransporter();
     
-    // Load and process template
-    const template = loadEmailTemplate();
-    if (!template) {
-      throw new Error('Email template not found');
+    // Check if we have credentials
+    const hasAuth = emailConfig.auth && emailConfig.auth.user && emailConfig.auth.pass;
+    if (!hasAuth) {
+      throw new Error('Email credentials not configured. Please set EMAIL_USER and EMAIL_PASSWORD in your .env file');
     }
     
-    const htmlContent = replaceTemplatePlaceholders(template, {
-      subject,
-      greeting: greeting || 'Hello!',
-      message,
-      details,
-      buttonText,
-      buttonUrl: buttonUrl || '#',
-      additionalInfo
-    });
+    // Load and process template
+    const template = loadEmailTemplate();
+    let htmlContent;
+    
+    if (template) {
+      htmlContent = replaceTemplatePlaceholders(template, {
+        subject,
+        greeting: greeting || 'Hello!',
+        message,
+        details,
+        buttonText,
+        buttonUrl: buttonUrl || '#',
+        additionalInfo
+      });
+    } else {
+      // Fallback HTML if template doesn't exist
+      htmlContent = `
+        <html>
+          <body>
+            <h2>${greeting || 'Hello!'}</h2>
+            <p>${message}</p>
+            ${details ? `<div>${details}</div>` : ''}
+            ${buttonText && buttonUrl ? `<p><a href="${buttonUrl}" style="background-color: #61dafb; color: #282c34; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">${buttonText}</a></p>` : ''}
+            ${additionalInfo ? `<p>${additionalInfo}</p>` : ''}
+          </body>
+        </html>
+      `;
+    }
+
+    // Determine sender email
+    const fromEmail = process.env.EMAIL_FROM || emailConfig.auth.user || 'noreply@sendmenow.com';
 
     // Email options
     const mailOptions = {
-      from: process.env.EMAIL_FROM || emailConfig.auth?.user || 'noreply@sendmenow.com',
+      from: fromEmail,
       to: to,
       subject: subject,
       html: htmlContent,
       // Plain text fallback
-      text: `${greeting || 'Hello!'}\n\n${message}\n\n${details || ''}\n\n${additionalInfo || ''}`
+      text: `${greeting || 'Hello!'}\n\n${message}\n\n${details ? details.replace(/<[^>]*>/g, '') : ''}\n\n${additionalInfo || ''}`
     };
+
+    // Add attachments if provided
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      mailOptions.attachments = attachments;
+    }
 
     // Send email
     const info = await mailTransporter.sendMail(mailOptions);
@@ -152,7 +193,17 @@ async function sendEmailNotification(options) {
     };
   } catch (error) {
     console.error('Error sending email:', error);
-    throw error;
+    
+    // Provide more helpful error messages
+    if (error.code === 'EAUTH') {
+      throw new Error('Email authentication failed. Please check your EMAIL_USER and EMAIL_PASSWORD in .env file');
+    } else if (error.code === 'ECONNECTION') {
+      throw new Error(`Failed to connect to email server (${emailConfig.host}:${emailConfig.port}). Please check your EMAIL_HOST and EMAIL_PORT settings.`);
+    } else if (error.message.includes('credentials')) {
+      throw error;
+    } else {
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
   }
 }
 
@@ -206,9 +257,28 @@ const emailTemplates = {
   })
 };
 
+// Verify email configuration
+function verifyEmailConfig() {
+  const hasAuth = emailConfig.auth && emailConfig.auth.user && emailConfig.auth.pass;
+  const hasHost = emailConfig.host;
+  const hasPort = emailConfig.port;
+  
+  return {
+    configured: hasAuth && hasHost && hasPort,
+    hasAuth: hasAuth,
+    hasHost: hasHost,
+    hasPort: hasPort,
+    host: emailConfig.host,
+    port: emailConfig.port,
+    secure: emailConfig.secure,
+    from: process.env.EMAIL_FROM || emailConfig.auth?.user || 'noreply@sendmenow.com'
+  };
+}
+
 module.exports = {
   sendEmailNotification,
   emailTemplates,
-  initializeTransporter
+  initializeTransporter,
+  verifyEmailConfig
 };
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './App.css';
 
-function CredentialPage({ onLogin, onSwitchToRegister }) {
+function CredentialPage({ onLogin, onSwitchToRegister, onForgotPassword }) {
   const [userName, setUserName] = useState('');
   const [userPassword, setUserPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -83,6 +83,9 @@ function CredentialPage({ onLogin, onSwitchToRegister }) {
           )}
           <div className="switch-link">
             <p>Don't have an account? <button type="button" onClick={onSwitchToRegister} className="link-button">Register here</button></p>
+            <p style={{ marginTop: '10px' }}>
+              <button type="button" onClick={onForgotPassword} className="link-button">Forgot Password?</button>
+            </p>
           </div>
         </form>
       </header>
