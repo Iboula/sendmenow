@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import CredentialPage from './CredentialPage';
+import PhotoSendPage from './PhotoSendPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
@@ -99,6 +100,16 @@ function App() {
     setMessage('');
   };
 
+  // Photo Send Page
+  if (isAuthenticated && loggedInUser && currentPage === 'send-photo') {
+    return (
+      <PhotoSendPage
+        loggedInUser={loggedInUser}
+        onBack={() => setCurrentPage('dashboard')}
+      />
+    );
+  }
+
   // Dashboard/Welcome screen for authenticated users
   if (isAuthenticated && loggedInUser && currentPage === 'dashboard') {
     return (
@@ -108,6 +119,12 @@ function App() {
           <div className="welcome-container">
             <p>Email: {loggedInUser.userEmail}</p>
             <p>User ID: {loggedInUser.id}</p>
+            <button 
+              onClick={() => setCurrentPage('send-photo')} 
+              className="submit-button"
+            >
+              Send Photo with Message
+            </button>
             <button onClick={handleLogout} className="submit-button">
               Logout
             </button>

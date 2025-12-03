@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { sendEmailNotification } = require('./utils/emailService');
 require('dotenv').config();
 
 const app = express();
@@ -46,6 +50,40 @@ app.options('*', cors(corsOptions));
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, 'uploads');
+    // Create uploads directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'photo-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter to only accept images
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: fileFilter
+});
 
 // MySQL Database Connection
 const db = mysql.createConnection({
@@ -144,6 +182,144 @@ app.post('/api/login', (req, res) => {
       token: `token_${user.id}_${Date.now()}` // Simple token for demo (use JWT in production)
     });
   });
+});
+
+// API Route to send photo with message via email
+app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
+  try {
+    // Validate required fields
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Photo is required'
+      });
+    }
+
+    const { recipientEmail, message, subject, senderName } = req.body;
+
+    if (!recipientEmail || !message) {
+      // Clean up uploaded file if validation fails
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Recipient email and message are required'
+      });
+    }
+
+    // Prepare email content
+    const emailSubject = subject || 'Photo from SendMeNow';
+    const emailMessage = message;
+    const greeting = senderName ? `Hello from ${senderName}!` : 'Hello!';
+    const details = `<p><strong>Message:</strong></p><p>${emailMessage}</p>`;
+
+    // Send email with photo attachment
+    try {
+      const nodemailer = require('nodemailer');
+      const emailConfig = {
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: process.env.EMAIL_PORT || 587,
+        secure: process.env.EMAIL_SECURE === 'true',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD || process.env.EMAIL_APP_PASSWORD
+        }
+      };
+
+      // Create transporter
+      const transporter = nodemailer.createTransport({
+        host: emailConfig.host,
+        port: emailConfig.port,
+        secure: emailConfig.secure,
+        auth: emailConfig.auth.user ? emailConfig.auth : undefined
+      });
+
+      // Load email template
+      const templatePath = path.join(__dirname, 'templates/emailTemplate.html');
+      let htmlContent = '';
+      
+      if (fs.existsSync(templatePath)) {
+        let template = fs.readFileSync(templatePath, 'utf8');
+        htmlContent = template
+          .replace(/{{subject}}/g, emailSubject)
+          .replace(/{{greeting}}/g, greeting)
+          .replace(/{{message}}/g, emailMessage)
+          .replace(/{{details}}/g, details)
+          .replace(/{{year}}/g, new Date().getFullYear());
+      } else {
+        // Fallback HTML if template doesn't exist
+        htmlContent = `
+          <html>
+            <body>
+              <h2>${greeting}</h2>
+              <p>${emailMessage}</p>
+              <p>Please see the attached photo.</p>
+            </body>
+          </html>
+        `;
+      }
+
+      // Email options with attachment
+      const mailOptions = {
+        from: process.env.EMAIL_FROM || emailConfig.auth?.user || 'noreply@sendmenow.com',
+        to: recipientEmail,
+        subject: emailSubject,
+        html: htmlContent,
+        text: `${greeting}\n\n${emailMessage}\n\nPlease see the attached photo.`,
+        attachments: [
+          {
+            filename: req.file.originalname,
+            path: req.file.path
+          }
+        ]
+      };
+
+      // Send email
+      const info = await transporter.sendMail(mailOptions);
+      
+      // Clean up uploaded file after sending
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+
+      console.log('Photo email sent successfully:', info.messageId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Photo sent successfully!',
+        messageId: info.messageId
+      });
+
+    } catch (emailError) {
+      console.error('Error sending email:', emailError);
+      
+      // Clean up uploaded file on error
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send email. Please check your email configuration.',
+        error: emailError.message
+      });
+    }
+
+  } catch (error) {
+    console.error('Error processing photo upload:', error);
+    
+    // Clean up uploaded file on error
+    if (req.file && req.file.path) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error processing photo upload',
+      error: error.message
+    });
+  }
 });
 
 // Health check endpoint
