@@ -744,8 +744,9 @@ app.get('/api/env-check', (req, res) => {
 
 // Cleanup function to delete messages and photos older than 24 hours
 function cleanupOldMessages(callback) {
-  const twentyFourHoursAgo = new Date();
-  twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+  // Calculate 24 hours ago with full precision (milliseconds)
+  // Subtract exactly 24 hours worth of milliseconds from current time
+  const twentyFourHoursAgo = new Date(Date.now() - (24 * 60 * 60 * 1000));
 
   // Get messages older than 24 hours with their photo paths
   const selectQuery = 'SELECT id, photo_path FROM messages WHERE sent_at < ?';
@@ -827,7 +828,10 @@ app.post('/api/cleanup-old-messages', (req, res) => {
 
 // Schedule cleanup to run periodically
 // Default: every hour, configurable via CLEANUP_INTERVAL_HOURS environment variable
-const CLEANUP_INTERVAL_HOURS = parseInt(process.env.CLEANUP_INTERVAL_HOURS) || 1;
+// Set to 0 to disable automatic cleanup
+const CLEANUP_INTERVAL_HOURS = process.env.CLEANUP_INTERVAL_HOURS !== undefined
+  ? (parseInt(process.env.CLEANUP_INTERVAL_HOURS) || 0)
+  : 1;
 const CLEANUP_INTERVAL = CLEANUP_INTERVAL_HOURS * 60 * 60 * 1000; // Convert hours to milliseconds
 
 if (CLEANUP_INTERVAL > 0) {
