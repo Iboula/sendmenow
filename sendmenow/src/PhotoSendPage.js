@@ -73,6 +73,8 @@ function PhotoSendPage({ loggedInUser, onBack }) {
       formData.append('message', message);
       formData.append('subject', subject || 'Photo from SendMeNow');
       formData.append('senderName', loggedInUser?.userName || 'Someone');
+      formData.append('senderId', loggedInUser?.id || '');
+      formData.append('senderEmail', loggedInUser?.userEmail || '');
 
       const response = await fetch('http://localhost:5000/api/send-photo', {
         method: 'POST',

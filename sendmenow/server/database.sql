@@ -28,3 +28,31 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
   INDEX idx_userEmail (userEmail)
 );
 
+-- Create messages table to store sent photos and messages
+CREATE TABLE IF NOT EXISTS messages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sender_id INT NOT NULL,
+  sender_email VARCHAR(255) NOT NULL,
+  sender_name VARCHAR(255) NOT NULL,
+  recipient_email VARCHAR(255) NOT NULL,
+  recipient_id INT,
+  subject VARCHAR(255),
+  message TEXT NOT NULL,
+  photo_filename VARCHAR(255),
+  photo_path VARCHAR(500),
+  photo_originalname VARCHAR(255),
+  photo_data LONGBLOB,
+  photo_mimetype VARCHAR(100),
+  sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_recipient_email (recipient_email),
+  INDEX idx_recipient_id (recipient_id),
+  INDEX idx_sender_id (sender_id),
+  INDEX idx_sent_at (sent_at)
+);
+
+-- If table already exists, add the new columns (run this manually if needed)
+-- ALTER TABLE messages ADD COLUMN photo_data LONGBLOB;
+-- ALTER TABLE messages ADD COLUMN photo_mimetype VARCHAR(100);
+

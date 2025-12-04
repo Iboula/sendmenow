@@ -4,6 +4,7 @@ import CredentialPage from './CredentialPage';
 import PhotoSendPage from './PhotoSendPage';
 import ForgotPasswordPage from './ForgotPasswordPage';
 import ResetPasswordPage from './ResetPasswordPage';
+import ReceivedMessagesPage from './ReceivedMessagesPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
@@ -122,6 +123,16 @@ function App() {
     );
   }
 
+  // Received Messages Page
+  if (isAuthenticated && loggedInUser && currentPage === 'received-messages') {
+    return (
+      <ReceivedMessagesPage
+        loggedInUser={loggedInUser}
+        onBack={() => setCurrentPage('dashboard')}
+      />
+    );
+  }
+
   // Dashboard/Welcome screen for authenticated users
   if (isAuthenticated && loggedInUser && currentPage === 'dashboard') {
     return (
@@ -136,6 +147,12 @@ function App() {
               className="submit-button"
             >
               Send Photo with Message
+            </button>
+            <button 
+              onClick={() => setCurrentPage('received-messages')} 
+              className="submit-button"
+            >
+              View Received Messages
             </button>
             <button onClick={handleLogout} className="submit-button">
               Logout

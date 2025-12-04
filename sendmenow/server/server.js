@@ -187,6 +187,9 @@ app.post('/api/login', (req, res) => {
 
 // API Route to send photo with message via email
 app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
+  let messageId = null;
+  let permanentPhotoPath = null;
+
   try {
     // Validate required fields
     if (!req.file) {
@@ -196,7 +199,7 @@ app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
       });
     }
 
-    const { recipientEmail, message, subject, senderName } = req.body;
+    const { recipientEmail, message, subject, senderName, senderId, senderEmail } = req.body;
 
     if (!recipientEmail || !message) {
       // Clean up uploaded file if validation fails
@@ -215,50 +218,121 @@ app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
     const greeting = senderName ? `Hello from ${senderName}!` : 'Hello!';
     const details = `<p><strong>Message:</strong></p><p>${emailMessage}</p><p>Please see the attached photo.</p>`;
 
-    // Send email with photo attachment using emailService
-    try {
-      const emailResult = await sendEmailNotification({
-        to: recipientEmail,
-        subject: emailSubject,
-        greeting: greeting,
-        message: emailMessage,
-        details: details,
-        additionalInfo: 'Thank you for using SendMeNow!',
-        attachments: [
-          {
-            filename: req.file.originalname,
-            path: req.file.path
-          }
-        ]
-      });
-      
-      // Clean up uploaded file after sending
-      if (req.file && req.file.path) {
-        fs.unlinkSync(req.file.path);
-      }
+    // Read image file as buffer for database storage
+    const photoData = fs.readFileSync(req.file.path);
+    const photoMimeType = req.file.mimetype || 'image/jpeg';
+    
+    // Optional: Keep a copy on filesystem for backup/reference
+    const permanentDir = path.join(__dirname, 'uploads', 'messages');
+    if (!fs.existsSync(permanentDir)) {
+      fs.mkdirSync(permanentDir, { recursive: true });
+    }
+    
+    const fileExtension = path.extname(req.file.originalname);
+    const uniqueFilename = `msg-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
+    permanentPhotoPath = path.join(permanentDir, uniqueFilename);
+    
+    // Copy file to permanent location (optional backup)
+    fs.copyFileSync(req.file.path, permanentPhotoPath);
 
-      console.log('Photo email sent successfully:', emailResult.messageId);
+    // Get sender info from database if senderId is provided
+    let senderIdValue = senderId ? parseInt(senderId) : null;
+    let senderEmailValue = senderEmail || null;
+    let senderNameValue = senderName || 'Unknown';
 
-      res.status(200).json({
-        success: true,
-        message: 'Photo sent successfully!',
-        messageId: emailResult.messageId
-      });
-
-    } catch (emailError) {
-      console.error('Error sending email:', emailError);
-      
-      // Clean up uploaded file on error
-      if (req.file && req.file.path) {
-        fs.unlinkSync(req.file.path);
-      }
-
-      return res.status(500).json({
-        success: false,
-        message: emailError.message || 'Failed to send email. Please check your email configuration.',
-        error: emailError.message
+    if (senderIdValue) {
+      // Verify sender exists
+      const senderQuery = 'SELECT id, user_name, user_mail FROM users WHERE id = ?';
+      db.query(senderQuery, [senderIdValue], (err, results) => {
+        if (!err && results.length > 0) {
+          senderNameValue = results[0].user_name || senderNameValue;
+          senderEmailValue = results[0].user_mail || senderEmailValue;
+        }
       });
     }
+
+    // Check if recipient is a registered user
+    const recipientQuery = 'SELECT id FROM users WHERE user_mail = ?';
+    db.query(recipientQuery, [recipientEmail], (err, recipientResults) => {
+      const recipientIdValue = (!err && recipientResults.length > 0) ? recipientResults[0].id : null;
+
+      // Save message to database with image as BLOB
+      const insertMessageQuery = `INSERT INTO messages 
+        (sender_id, sender_email, sender_name, recipient_email, recipient_id, subject, message, photo_filename, photo_path, photo_originalname, photo_data, photo_mimetype) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      
+      db.query(insertMessageQuery, [
+        senderIdValue,
+        senderEmailValue,
+        senderNameValue,
+        recipientEmail,
+        recipientIdValue,
+        emailSubject,
+        emailMessage,
+        uniqueFilename,
+        permanentPhotoPath,
+        req.file.originalname,
+        photoData,  // Store image as BLOB
+        photoMimeType  // Store MIME type for proper serving
+      ], async (insertErr, insertResult) => {
+        if (insertErr) {
+          console.error('Error saving message to database:', insertErr);
+          // Continue with email sending even if DB save fails
+        } else {
+          messageId = insertResult.insertId;
+        }
+
+        // Send email with photo attachment using emailService
+        try {
+          const emailResult = await sendEmailNotification({
+            to: recipientEmail,
+            subject: emailSubject,
+            greeting: greeting,
+            message: emailMessage,
+            details: details,
+            additionalInfo: 'Thank you for using SendMeNow!',
+            attachments: [
+              {
+                filename: req.file.originalname,
+                path: req.file.path
+              }
+            ]
+          });
+          
+          // Clean up temporary uploaded file after sending (keep permanent copy)
+          if (req.file && req.file.path) {
+            fs.unlinkSync(req.file.path);
+          }
+
+          console.log('Photo email sent successfully:', emailResult.messageId);
+
+          res.status(200).json({
+            success: true,
+            message: 'Photo sent successfully!',
+            messageId: emailResult.messageId,
+            savedMessageId: messageId
+          });
+
+        } catch (emailError) {
+          console.error('Error sending email:', emailError);
+          
+          // Clean up uploaded file on error
+          if (req.file && req.file.path) {
+            fs.unlinkSync(req.file.path);
+          }
+          // Also clean up permanent copy if email failed
+          if (permanentPhotoPath && fs.existsSync(permanentPhotoPath)) {
+            fs.unlinkSync(permanentPhotoPath);
+          }
+
+          return res.status(500).json({
+            success: false,
+            message: emailError.message || 'Failed to send email. Please check your email configuration.',
+            error: emailError.message
+          });
+        }
+      });
+    });
 
   } catch (error) {
     console.error('Error processing photo upload:', error);
@@ -266,6 +340,10 @@ app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
     // Clean up uploaded file on error
     if (req.file && req.file.path) {
       fs.unlinkSync(req.file.path);
+    }
+    // Clean up permanent copy on error
+    if (permanentPhotoPath && fs.existsSync(permanentPhotoPath)) {
+      fs.unlinkSync(permanentPhotoPath);
     }
 
     res.status(500).json({
@@ -292,7 +370,7 @@ app.post('/api/forgot-password', async (req, res) => {
     // Check if user exists
     const userQuery = 'SELECT * FROM users WHERE user_mail = ?';
     
-    db.query(userQuery, [userEmail, userEmail], async (err, results) => {
+    db.query(userQuery, [userEmail], async (err, results) => {
       if (err) {
         console.error('Error querying user:', err);
         return res.status(500).json({ 
@@ -456,6 +534,126 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running' });
 });
 
+// API Route to get received messages for a user
+app.get('/api/received-messages', (req, res) => {
+  const { userEmail, userId } = req.query;
+
+  if (!userEmail && !userId) {
+    return res.status(400).json({
+      success: false,
+      message: 'userEmail or userId is required'
+    });
+  }
+
+  // Build query to get messages for this user
+  let query;
+  let queryParams;
+
+  if (userId) {
+    query = `SELECT m.*, 
+             u_sender.user_name as sender_user_name,
+             u_sender.user_mail as sender_user_mail
+             FROM messages m
+             LEFT JOIN users u_sender ON m.sender_id = u_sender.id
+             WHERE m.recipient_id = ? OR m.recipient_email = ?
+             ORDER BY m.sent_at DESC`;
+    queryParams = [userId, userEmail || ''];
+  } else {
+    query = `SELECT m.*, 
+             u_sender.user_name as sender_user_name,
+             u_sender.user_mail as sender_user_mail
+             FROM messages m
+             LEFT JOIN users u_sender ON m.sender_id = u_sender.id
+             WHERE m.recipient_email = ?
+             ORDER BY m.sent_at DESC`;
+    queryParams = [userEmail];
+  }
+
+  db.query(query, queryParams, (err, results) => {
+    if (err) {
+      console.error('Error fetching messages:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Error fetching messages',
+        error: err.message
+      });
+    }
+
+    // Format results and create photo URLs
+    const formattedMessages = results.map(msg => ({
+      id: msg.id,
+      senderId: msg.sender_id,
+      senderName: msg.sender_name || msg.sender_user_name || 'Unknown',
+      senderEmail: msg.sender_email || msg.sender_user_mail || 'Unknown',
+      recipientEmail: msg.recipient_email,
+      subject: msg.subject,
+      message: msg.message,
+      photoFilename: msg.photo_filename,
+      photoPath: msg.photo_path,
+      photoOriginalName: msg.photo_originalname,
+      photoUrl: msg.photo_path ? `/api/message-photo/${msg.id}` : null,
+      sentAt: msg.sent_at
+    }));
+
+    res.status(200).json({
+      success: true,
+      messages: formattedMessages,
+      count: formattedMessages.length
+    });
+  });
+});
+
+// API Route to serve message photos from database
+app.get('/api/message-photo/:messageId', (req, res) => {
+  const messageId = req.params.messageId;
+
+  // Get message from database with photo data
+  const query = 'SELECT photo_data, photo_mimetype, photo_originalname, photo_path FROM messages WHERE id = ?';
+  
+  db.query(query, [messageId], (err, results) => {
+    if (err || results.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message or photo not found'
+      });
+    }
+
+    const message = results[0];
+    
+    // Try to serve from database BLOB first
+    if (message.photo_data) {
+      const contentType = message.photo_mimetype || 'image/jpeg';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${message.photo_originalname || 'photo'}"`);
+      res.send(message.photo_data);
+      return;
+    }
+    
+    // Fallback to filesystem if BLOB is not available (for backward compatibility)
+    if (message.photo_path && fs.existsSync(message.photo_path)) {
+      const ext = path.extname(message.photo_path).toLowerCase();
+      const contentTypes = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp'
+      };
+      const contentType = contentTypes[ext] || 'image/jpeg';
+      
+      res.setHeader('Content-Type', contentType);
+      res.sendFile(path.resolve(message.photo_path));
+      return;
+    }
+
+    // No photo data found
+    return res.status(404).json({
+      success: false,
+      message: 'Photo not found in database or filesystem'
+    });
+  });
+});
+
 // Email configuration check endpoint
 app.get('/api/email-config', (req, res) => {
   const { verifyEmailConfig } = require('./utils/emailService');
@@ -484,6 +682,45 @@ app.get('/api/email-config', (req, res) => {
         : 'Email configuration is incomplete. Please set EMAIL_USER, EMAIL_PASSWORD, EMAIL_HOST, and EMAIL_PORT in your .env file.'
     });
   }
+});
+
+// Environment variables check endpoint (for debugging - only in development)
+app.get('/api/env-check', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ 
+      message: 'This endpoint is not available in production' 
+    });
+  }
+
+  // Check which environment variables are set (without showing values)
+  const envVars = {
+    // Database
+    DB_HOST: process.env.DB_HOST ? '✓ Set' : '✗ Missing',
+    DB_USER: process.env.DB_USER ? '✓ Set' : '✗ Missing',
+    DB_PASSWORD: process.env.DB_PASSWORD ? '✓ Set' : '✗ Missing',
+    DB_NAME: process.env.DB_NAME ? '✓ Set' : '✗ Missing',
+    DB_PORT: process.env.DB_PORT ? '✓ Set' : '✗ Missing',
+    
+    // Server
+    PORT: process.env.PORT ? '✓ Set' : '✗ Missing',
+    NODE_ENV: process.env.NODE_ENV ? '✓ Set' : '✗ Missing',
+    FRONTEND_URL: process.env.FRONTEND_URL ? '✓ Set' : '✗ Missing',
+    
+    // Email
+    EMAIL_HOST: process.env.EMAIL_HOST ? '✓ Set' : '✗ Missing',
+    EMAIL_PORT: process.env.EMAIL_PORT ? '✓ Set' : '✗ Missing',
+    EMAIL_SECURE: process.env.EMAIL_SECURE ? '✓ Set' : '✗ Missing',
+    EMAIL_USER: process.env.EMAIL_USER ? '✓ Set' : '✗ Missing',
+    EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? '✓ Set' : '✗ Missing',
+    EMAIL_FROM: process.env.EMAIL_FROM ? '✓ Set' : '✗ Missing',
+  };
+
+  res.json({
+    message: 'Environment variables check',
+    dotenvLoaded: typeof process.env.DB_HOST !== 'undefined',
+    variables: envVars,
+    note: 'Values are hidden for security. This endpoint only shows if variables are set.'
+  });
 });
 
 // Start server
