@@ -742,6 +742,108 @@ app.get('/api/env-check', (req, res) => {
   });
 });
 
+// Cleanup function to delete messages and photos older than 24 hours
+function cleanupOldMessages(callback) {
+  const twentyFourHoursAgo = new Date();
+  twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+  // Get messages older than 24 hours with their photo paths
+  const selectQuery = 'SELECT id, photo_path FROM messages WHERE sent_at < ?';
+  
+  db.query(selectQuery, [twentyFourHoursAgo], (err, results) => {
+    if (err) {
+      console.error('Error fetching old messages for cleanup:', err);
+      if (callback) callback(err, null);
+      return;
+    }
+
+    if (results.length === 0) {
+      console.log('No old messages to clean up');
+      if (callback) callback(null, { deletedMessages: 0, deletedFiles: 0 });
+      return;
+    }
+
+    const messageIds = results.map(msg => msg.id);
+    const photoPaths = results
+      .map(msg => msg.photo_path)
+      .filter(path => path && path !== null);
+
+    // Delete photo files from filesystem
+    let deletedFiles = 0;
+    photoPaths.forEach(photoPath => {
+      try {
+        if (fs.existsSync(photoPath)) {
+          fs.unlinkSync(photoPath);
+          deletedFiles++;
+        }
+      } catch (fileErr) {
+        console.error(`Error deleting photo file ${photoPath}:`, fileErr);
+      }
+    });
+
+    // Delete messages from database
+    if (messageIds.length > 0) {
+      // Create placeholders for IN clause
+      const placeholders = messageIds.map(() => '?').join(',');
+      const deleteQuery = `DELETE FROM messages WHERE id IN (${placeholders})`;
+      
+      db.query(deleteQuery, messageIds, (deleteErr, deleteResult) => {
+        if (deleteErr) {
+          console.error('Error deleting old messages from database:', deleteErr);
+          if (callback) callback(deleteErr, null);
+          return;
+        }
+
+        const deletedCount = deleteResult.affectedRows || 0;
+        console.log(`Cleanup completed: Deleted ${deletedCount} message(s) and ${deletedFiles} photo file(s) older than 24 hours`);
+        if (callback) callback(null, { deletedMessages: deletedCount, deletedFiles: deletedFiles });
+      });
+    } else {
+      console.log('No messages to delete from database');
+      if (callback) callback(null, { deletedMessages: 0, deletedFiles: deletedFiles });
+    }
+  });
+}
+
+// API endpoint for manual cleanup (admin/testing purposes)
+app.post('/api/cleanup-old-messages', (req, res) => {
+  cleanupOldMessages((err, result) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error during cleanup',
+        error: err.message
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Cleanup completed successfully',
+      deletedMessages: result.deletedMessages,
+      deletedFiles: result.deletedFiles
+    });
+  });
+});
+
+// Schedule cleanup to run periodically
+// Default: every hour, configurable via CLEANUP_INTERVAL_HOURS environment variable
+const CLEANUP_INTERVAL_HOURS = parseInt(process.env.CLEANUP_INTERVAL_HOURS) || 1;
+const CLEANUP_INTERVAL = CLEANUP_INTERVAL_HOURS * 60 * 60 * 1000; // Convert hours to milliseconds
+
+if (CLEANUP_INTERVAL > 0) {
+  setInterval(() => {
+    cleanupOldMessages();
+  }, CLEANUP_INTERVAL);
+
+  console.log(`Automatic cleanup scheduled: Messages older than 24 hours will be deleted every ${CLEANUP_INTERVAL_HOURS} hour(s)`);
+} else {
+  console.log('Automatic cleanup disabled (CLEANUP_INTERVAL_HOURS is 0 or invalid)');
+}
+
+// Run cleanup immediately on server start (optional - can be removed if you only want scheduled cleanup)
+// Uncomment the line below if you want to run cleanup on server startup
+// cleanupOldMessages();
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
