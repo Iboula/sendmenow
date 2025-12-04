@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 const { sendEmailNotification, emailTemplates } = require('./utils/emailService');
 require('dotenv').config();
 
@@ -805,6 +806,189 @@ function cleanupOldMessages(callback) {
     }
   });
 }
+
+// QR Code Generator API Endpoints
+
+// GET endpoint for QR code generation
+app.get('/api/qrcode', async (req, res) => {
+  try {
+    const { data, format = 'png', size = 200, margin = 4, errorCorrectionLevel = 'M' } = req.query;
+
+    // Validate required parameter
+    if (!data) {
+      return res.status(400).json({
+        success: false,
+        message: 'Data parameter is required. Provide the text/URL to encode in the QR code.'
+      });
+    }
+
+    // Validate format
+    const validFormats = ['png', 'svg', 'dataurl'];
+    if (!validFormats.includes(format.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid format. Supported formats: ${validFormats.join(', ')}`
+      });
+    }
+
+    // Validate error correction level
+    const validErrorLevels = ['L', 'M', 'Q', 'H'];
+    if (!validErrorLevels.includes(errorCorrectionLevel.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid error correction level. Supported levels: ${validErrorLevels.join(', ')}`
+      });
+    }
+
+    // Parse size and margin
+    const qrSize = parseInt(size) || 200;
+    const qrMargin = parseInt(margin) || 4;
+
+    // Validate size constraints
+    if (qrSize < 50 || qrSize > 2000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Size must be between 50 and 2000 pixels'
+      });
+    }
+
+    // QR Code options
+    const qrOptions = {
+      errorCorrectionLevel: errorCorrectionLevel.toUpperCase(),
+      type: format === 'svg' ? 'svg' : 'png',
+      quality: 0.92,
+      margin: qrMargin,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      },
+      width: qrSize
+    };
+
+    // Generate QR code based on format
+    if (format.toLowerCase() === 'svg') {
+      const svg = await QRCode.toString(data, { ...qrOptions, type: 'svg' });
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.send(svg);
+    } else if (format.toLowerCase() === 'dataurl') {
+      const dataUrl = await QRCode.toDataURL(data, qrOptions);
+      res.json({
+        success: true,
+        dataUrl: dataUrl,
+        format: 'png',
+        size: qrSize
+      });
+    } else {
+      // PNG format (default)
+      const buffer = await QRCode.toBuffer(data, qrOptions);
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', `inline; filename="qrcode-${Date.now()}.png"`);
+      res.send(buffer);
+    }
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating QR code',
+      error: error.message
+    });
+  }
+});
+
+// POST endpoint for QR code generation (supports more options)
+app.post('/api/qrcode', async (req, res) => {
+  try {
+    const {
+      data,
+      format = 'png',
+      size = 200,
+      margin = 4,
+      errorCorrectionLevel = 'M',
+      darkColor = '#000000',
+      lightColor = '#FFFFFF'
+    } = req.body;
+
+    // Validate required parameter
+    if (!data) {
+      return res.status(400).json({
+        success: false,
+        message: 'Data field is required. Provide the text/URL to encode in the QR code.'
+      });
+    }
+
+    // Validate format
+    const validFormats = ['png', 'svg', 'dataurl'];
+    if (!validFormats.includes(format.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid format. Supported formats: ${validFormats.join(', ')}`
+      });
+    }
+
+    // Validate error correction level
+    const validErrorLevels = ['L', 'M', 'Q', 'H'];
+    if (!validErrorLevels.includes(errorCorrectionLevel.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid error correction level. Supported levels: ${validErrorLevels.join(', ')}`
+      });
+    }
+
+    // Parse size and margin
+    const qrSize = parseInt(size) || 200;
+    const qrMargin = parseInt(margin) || 4;
+
+    // Validate size constraints
+    if (qrSize < 50 || qrSize > 2000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Size must be between 50 and 2000 pixels'
+      });
+    }
+
+    // QR Code options
+    const qrOptions = {
+      errorCorrectionLevel: errorCorrectionLevel.toUpperCase(),
+      type: format === 'svg' ? 'svg' : 'png',
+      quality: 0.92,
+      margin: qrMargin,
+      color: {
+        dark: darkColor,
+        light: lightColor
+      },
+      width: qrSize
+    };
+
+    // Generate QR code based on format
+    if (format.toLowerCase() === 'svg') {
+      const svg = await QRCode.toString(data, { ...qrOptions, type: 'svg' });
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.send(svg);
+    } else if (format.toLowerCase() === 'dataurl') {
+      const dataUrl = await QRCode.toDataURL(data, qrOptions);
+      res.json({
+        success: true,
+        dataUrl: dataUrl,
+        format: 'png',
+        size: qrSize,
+        data: data
+      });
+    } else {
+      // PNG format (default)
+      const buffer = await QRCode.toBuffer(data, qrOptions);
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', `inline; filename="qrcode-${Date.now()}.png"`);
+      res.send(buffer);
+    }
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating QR code',
+      error: error.message
+    });
+  }
+});
 
 // API endpoint for manual cleanup (admin/testing purposes)
 app.post('/api/cleanup-old-messages', (req, res) => {
