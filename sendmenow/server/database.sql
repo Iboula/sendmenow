@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 -- Create messages table to store sent photos and messages
 CREATE TABLE IF NOT EXISTS messages (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  sender_id INT NOT NULL,
+  sender_id INT,
   sender_email VARCHAR(255) NOT NULL,
   sender_name VARCHAR(255) NOT NULL,
   recipient_email VARCHAR(255) NOT NULL,

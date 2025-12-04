@@ -240,41 +240,59 @@ app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
     let senderEmailValue = senderEmail || null;
     let senderNameValue = senderName || 'Unknown';
 
-    if (senderIdValue) {
-      // Verify sender exists
-      const senderQuery = 'SELECT id, user_name, user_mail FROM users WHERE id = ?';
-      db.query(senderQuery, [senderIdValue], (err, results) => {
-        if (!err && results.length > 0) {
-          senderNameValue = results[0].user_name || senderNameValue;
-          senderEmailValue = results[0].user_mail || senderEmailValue;
+    // Helper function to get sender info and then proceed with recipient check and insert
+    const getSenderInfoAndProceed = (callback) => {
+      if (senderIdValue) {
+        // Verify sender exists and get info from database
+        const senderQuery = 'SELECT id, user_name, user_mail FROM users WHERE id = ?';
+        db.query(senderQuery, [senderIdValue], (err, results) => {
+          if (!err && results.length > 0) {
+            senderNameValue = results[0].user_name || senderNameValue;
+            senderEmailValue = results[0].user_mail || senderEmailValue;
+          }
+          // Proceed with recipient check and insert after sender info is fetched
+          callback();
+        });
+      } else {
+        // No senderId, proceed directly
+        callback();
+      }
+    };
+
+    // Get sender info first, then check recipient and insert
+    getSenderInfoAndProceed(() => {
+      // Check if recipient is a registered user
+      const recipientQuery = 'SELECT id FROM users WHERE user_mail = ?';
+      db.query(recipientQuery, [recipientEmail], (err, recipientResults) => {
+        const recipientIdValue = (!err && recipientResults.length > 0) ? recipientResults[0].id : null;
+
+        // Validate sender email and name are not null (required fields)
+        if (!senderEmailValue) {
+          senderEmailValue = 'unknown@sendmenow.com';
         }
-      });
-    }
+        if (!senderNameValue || senderNameValue === 'Unknown') {
+          senderNameValue = senderEmailValue.split('@')[0] || 'Unknown Sender';
+        }
 
-    // Check if recipient is a registered user
-    const recipientQuery = 'SELECT id FROM users WHERE user_mail = ?';
-    db.query(recipientQuery, [recipientEmail], (err, recipientResults) => {
-      const recipientIdValue = (!err && recipientResults.length > 0) ? recipientResults[0].id : null;
-
-      // Save message to database with image as BLOB
-      const insertMessageQuery = `INSERT INTO messages 
-        (sender_id, sender_email, sender_name, recipient_email, recipient_id, subject, message, photo_filename, photo_path, photo_originalname, photo_data, photo_mimetype) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-      
-      db.query(insertMessageQuery, [
-        senderIdValue,
-        senderEmailValue,
-        senderNameValue,
-        recipientEmail,
-        recipientIdValue,
-        emailSubject,
-        emailMessage,
-        uniqueFilename,
-        permanentPhotoPath,
-        req.file.originalname,
-        photoData,  // Store image as BLOB
-        photoMimeType  // Store MIME type for proper serving
-      ], async (insertErr, insertResult) => {
+        // Save message to database with image as BLOB
+        const insertMessageQuery = `INSERT INTO messages 
+          (sender_id, sender_email, sender_name, recipient_email, recipient_id, subject, message, photo_filename, photo_path, photo_originalname, photo_data, photo_mimetype) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        
+        db.query(insertMessageQuery, [
+          senderIdValue,
+          senderEmailValue,
+          senderNameValue,
+          recipientEmail,
+          recipientIdValue,
+          emailSubject,
+          emailMessage,
+          uniqueFilename,
+          permanentPhotoPath,
+          req.file.originalname,
+          photoData,  // Store image as BLOB
+          photoMimeType  // Store MIME type for proper serving
+        ], async (insertErr, insertResult) => {
         if (insertErr) {
           console.error('Error saving message to database:', insertErr);
           // Continue with email sending even if DB save fails
@@ -331,6 +349,7 @@ app.post('/api/send-photo', upload.single('photo'), async (req, res) => {
             error: emailError.message
           });
         }
+      });
       });
     });
 

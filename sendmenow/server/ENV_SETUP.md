@@ -20,12 +20,12 @@
    NODE_ENV=development
    FRONTEND_URL=http://localhost:3000
    
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_SECURE=false
-EMAIL_USER=ggexova@gmail.com
-EMAIL_PASSWORD=cbwf fjwv rgih ffzv
-EMAIL_FROM=ggexova@gmail.com
+ EMAIL_HOST=smtp.gmail.com
+ EMAIL_PORT=587
+ EMAIL_SECURE=false
+ EMAIL_USER=your-email@gmail.com
+ EMAIL_PASSWORD=your-app-password
+ EMAIL_FROM=your-email@gmail.com
    ```
 
 ## How It Works
