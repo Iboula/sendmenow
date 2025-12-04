@@ -91,7 +91,7 @@ const db = mysql.createConnection({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '1234',
-  database: process.env.DB_NAME || 'sendmenow',
+  database: process.env.DB_NAME || 'sendmenow_db',
   port: process.env.DB_PORT || 3306
 });
 
@@ -290,7 +290,7 @@ app.post('/api/forgot-password', async (req, res) => {
 
   try {
     // Check if user exists
-    const userQuery = 'SELECT * FROM users WHERE user_mail = ? OR userEmail = ?';
+    const userQuery = 'SELECT * FROM users WHERE user_mail = ?';
     
     db.query(userQuery, [userEmail, userEmail], async (err, results) => {
       if (err) {

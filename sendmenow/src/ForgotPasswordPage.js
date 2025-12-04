@@ -73,4 +73,3 @@ function ForgotPasswordPage({ onBack }) {
 }
 
 export default ForgotPasswordPage;
-
