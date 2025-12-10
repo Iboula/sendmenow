@@ -108,10 +108,13 @@ function App() {
     // Clear localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('termsAccepted');
+    localStorage.removeItem('termsAcceptedDate');
     
     // Reset state
     setIsAuthenticated(false);
     setLoggedInUser(null);
+    setTermsAccepted(false);
     setCurrentPage('login');
     setUserName('');
     setUserEmail('');
@@ -174,14 +177,7 @@ function App() {
     );
   }
 
-  // Terms and Conditions Page - Show first if not authenticated and terms not accepted
-  if (!isAuthenticated && !termsAccepted) {
-    return (
-      <TermsAndConditionsPage onAccept={handleTermsAccept} />
-    );
-  }
-
-  // Reset Password Page
+  // Reset Password Page - Check before terms page to allow password reset flow
   if (currentPage === 'reset-password') {
     return (
       <ResetPasswordPage
@@ -191,6 +187,13 @@ function App() {
           window.history.replaceState({}, document.title, window.location.pathname);
         }}
       />
+    );
+  }
+
+  // Terms and Conditions Page - Show first if not authenticated and terms not accepted
+  if (!isAuthenticated && !termsAccepted) {
+    return (
+      <TermsAndConditionsPage onAccept={handleTermsAccept} />
     );
   }
 
