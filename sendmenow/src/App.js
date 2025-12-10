@@ -5,6 +5,7 @@ import PhotoSendPage from './PhotoSendPage';
 import ForgotPasswordPage from './ForgotPasswordPage';
 import ResetPasswordPage from './ResetPasswordPage';
 import ReceivedMessagesPage from './ReceivedMessagesPage';
+import TermsAndConditionsPage from './TermsAndConditionsPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
@@ -15,8 +16,9 @@ function App() {
   const [userPassword, setUserPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
-  // Check for existing authentication on component mount
+  // Check for existing authentication and terms acceptance on component mount
   useEffect(() => {
     // Check if we're on a reset password page
     const urlParams = new URLSearchParams(window.location.search);
@@ -27,6 +29,10 @@ function App() {
       setCurrentPage('reset-password');
       return;
     }
+
+    // Check if terms have been accepted
+    const accepted = localStorage.getItem('termsAccepted') === 'true';
+    setTermsAccepted(accepted);
 
     const savedUser = localStorage.getItem('user');
     const savedToken = localStorage.getItem('token');
@@ -113,6 +119,11 @@ function App() {
     setMessage('');
   };
 
+  const handleTermsAccept = () => {
+    setTermsAccepted(true);
+    setCurrentPage('login');
+  };
+
   // Photo Send Page
   if (isAuthenticated && loggedInUser && currentPage === 'send-photo') {
     return (
@@ -160,6 +171,13 @@ function App() {
           </div>
         </header>
       </div>
+    );
+  }
+
+  // Terms and Conditions Page - Show first if not authenticated and terms not accepted
+  if (!isAuthenticated && !termsAccepted) {
+    return (
+      <TermsAndConditionsPage onAccept={handleTermsAccept} />
     );
   }
 
