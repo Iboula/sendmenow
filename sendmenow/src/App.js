@@ -5,7 +5,11 @@ import PhotoSendPage from './PhotoSendPage';
 import ForgotPasswordPage from './ForgotPasswordPage';
 import ResetPasswordPage from './ResetPasswordPage';
 import ReceivedMessagesPage from './ReceivedMessagesPage';
+<<<<<<< HEAD
 import API_BASE_URL from './config';
+=======
+import TermsAndConditionsPage from './TermsAndConditionsPage';
+>>>>>>> f632ae6a63eabe4b5c0d32c678b18e88ae2aebed
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
@@ -16,8 +20,9 @@ function App() {
   const [userPassword, setUserPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
-  // Check for existing authentication on component mount
+  // Check for existing authentication and terms acceptance on component mount
   useEffect(() => {
     // Check if we're on a reset password page
     const urlParams = new URLSearchParams(window.location.search);
@@ -28,6 +33,10 @@ function App() {
       setCurrentPage('reset-password');
       return;
     }
+
+    // Check if terms have been accepted
+    const accepted = localStorage.getItem('termsAccepted') === 'true';
+    setTermsAccepted(accepted);
 
     const savedUser = localStorage.getItem('user');
     const savedToken = localStorage.getItem('token');
@@ -103,15 +112,23 @@ function App() {
     // Clear localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('termsAccepted');
+    localStorage.removeItem('termsAcceptedDate');
     
     // Reset state
     setIsAuthenticated(false);
     setLoggedInUser(null);
+    setTermsAccepted(false);
     setCurrentPage('login');
     setUserName('');
     setUserEmail('');
     setUserPassword('');
     setMessage('');
+  };
+
+  const handleTermsAccept = () => {
+    setTermsAccepted(true);
+    setCurrentPage('login');
   };
 
   // Photo Send Page
@@ -164,7 +181,7 @@ function App() {
     );
   }
 
-  // Reset Password Page
+  // Reset Password Page - Check before terms page to allow password reset flow
   if (currentPage === 'reset-password') {
     return (
       <ResetPasswordPage
@@ -174,6 +191,13 @@ function App() {
           window.history.replaceState({}, document.title, window.location.pathname);
         }}
       />
+    );
+  }
+
+  // Terms and Conditions Page - Show first if not authenticated and terms not accepted
+  if (!isAuthenticated && !termsAccepted) {
+    return (
+      <TermsAndConditionsPage onAccept={handleTermsAccept} />
     );
   }
 
