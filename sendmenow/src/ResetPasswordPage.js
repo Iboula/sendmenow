@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
+import API_BASE_URL from './config';
 
 function ResetPasswordPage({ onBack }) {
   const [token, setToken] = useState('');
@@ -45,7 +46,7 @@ function ResetPasswordPage({ onBack }) {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/reset-password', {
+      const response = await fetch(`${API_BASE_URL}/api/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

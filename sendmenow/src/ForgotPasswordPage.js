@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './App.css';
+import API_BASE_URL from './config';
 
 function ForgotPasswordPage({ onBack }) {
   const [userEmail, setUserEmail] = useState('');
@@ -12,7 +13,7 @@ function ForgotPasswordPage({ onBack }) {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/forgot-password', {
+      const response = await fetch(`${API_BASE_URL}/api/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

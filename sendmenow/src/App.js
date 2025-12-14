@@ -5,6 +5,7 @@ import PhotoSendPage from './PhotoSendPage';
 import ForgotPasswordPage from './ForgotPasswordPage';
 import ResetPasswordPage from './ResetPasswordPage';
 import ReceivedMessagesPage from './ReceivedMessagesPage';
+import API_BASE_URL from './config';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
@@ -51,7 +52,7 @@ function App() {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch(`${API_BASE_URL}/api/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

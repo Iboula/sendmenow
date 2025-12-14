@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
+import API_BASE_URL from './config';
 
 function ReceivedMessagesPage({ loggedInUser, onBack }) {
   const [messages, setMessages] = useState([]);
@@ -19,7 +20,7 @@ function ReceivedMessagesPage({ loggedInUser, onBack }) {
         userId: loggedInUser.id
       });
 
-      const response = await fetch(`http://localhost:5000/api/received-messages?${params}`);
+      const response = await fetch(`${API_BASE_URL}/api/received-messages?${params}`);
       const data = await response.json();
 
       if (response.ok && data.success) {
@@ -118,7 +119,7 @@ function ReceivedMessagesPage({ loggedInUser, onBack }) {
                   {msg.photoUrl && (
                     <div className="message-photo-container">
                       <img
-                        src={`http://localhost:5000${msg.photoUrl}`}
+                        src={`${API_BASE_URL}${msg.photoUrl}`}
                         alt={msg.photoOriginalName || 'Message photo'}
                         className="message-photo"
                         onClick={() => setSelectedMessage(msg)}
@@ -162,7 +163,7 @@ function ReceivedMessagesPage({ loggedInUser, onBack }) {
             </button>
             <h3>From: {selectedMessage.senderName}</h3>
             <img
-              src={`http://localhost:5000${selectedMessage.photoUrl}`}
+              src={`${API_BASE_URL}${selectedMessage.photoUrl}`}
               alt={selectedMessage.photoOriginalName || 'Message photo'}
               className="modal-photo"
             />

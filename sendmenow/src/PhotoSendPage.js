@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './App.css';
+import API_BASE_URL from './config';
 
 function PhotoSendPage({ loggedInUser, onBack }) {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
@@ -76,7 +77,7 @@ function PhotoSendPage({ loggedInUser, onBack }) {
       formData.append('senderId', loggedInUser?.id || '');
       formData.append('senderEmail', loggedInUser?.userEmail || '');
 
-      const response = await fetch('http://localhost:5000/api/send-photo', {
+      const response = await fetch(`${API_BASE_URL}/api/send-photo`, {
         method: 'POST',
         body: formData,
       });
