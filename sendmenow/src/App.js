@@ -5,11 +5,8 @@ import PhotoSendPage from './PhotoSendPage';
 import ForgotPasswordPage from './ForgotPasswordPage';
 import ResetPasswordPage from './ResetPasswordPage';
 import ReceivedMessagesPage from './ReceivedMessagesPage';
-<<<<<<< HEAD
 import API_BASE_URL from './config';
-=======
 import TermsAndConditionsPage from './TermsAndConditionsPage';
->>>>>>> f632ae6a63eabe4b5c0d32c678b18e88ae2aebed
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
