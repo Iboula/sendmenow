@@ -990,6 +990,86 @@ app.post('/api/qrcode', async (req, res) => {
   }
 });
 
+// API endpoint to generate QR code for user profile
+app.get('/api/user-profile-qrcode/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID'
+      });
+    }
+
+    // Get user information from database
+    const userQuery = 'SELECT id, user_name, user_mail FROM users WHERE id = ?';
+    
+    db.query(userQuery, [userId], async (err, results) => {
+      if (err) {
+        console.error('Error fetching user:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Error fetching user information',
+          error: err.message
+        });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      const user = results[0];
+      
+      // Create profile data as JSON (can be scanned and parsed)
+      const profileData = {
+        id: user.id,
+        userName: user.user_name,
+        userEmail: user.user_mail,
+        platform: 'SendMeNow',
+        timestamp: new Date().toISOString()
+      };
+
+      // Convert to JSON string for QR code
+      const qrData = JSON.stringify(profileData);
+
+      // Generate QR code options
+      const qrOptions = {
+        errorCorrectionLevel: 'M',
+        type: 'png',
+        quality: 0.92,
+        margin: 4,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        width: 300
+      };
+
+      // Generate QR code as data URL
+      const dataUrl = await QRCode.toDataURL(qrData, qrOptions);
+      
+      res.json({
+        success: true,
+        dataUrl: dataUrl,
+        profileData: profileData,
+        format: 'png',
+        size: 300
+      });
+    });
+  } catch (error) {
+    console.error('Error generating user profile QR code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating QR code',
+      error: error.message
+    });
+  }
+});
+
 // API endpoint for manual cleanup (admin/testing purposes)
 app.post('/api/cleanup-old-messages', (req, res) => {
   cleanupOldMessages((err, result) => {
