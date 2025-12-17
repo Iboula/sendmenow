@@ -564,3 +564,90 @@
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* Profile QR Code Page Styles */
+.qrcode-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 20px;
+}
+
+.qrcode-card {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+}
+
+.qrcode-image-container {
+  padding: 20px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.qrcode-image {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  display: block;
+}
+
+.profile-info {
+  width: 100%;
+  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.profile-info h3 {
+  margin: 0 0 15px 0;
+  color: #61dafb;
+  font-size: 20px;
+  text-align: center;
+  border-bottom: 1px solid rgba(97, 218, 251, 0.3);
+  padding-bottom: 10px;
+}
+
+.profile-info p {
+  margin: 10px 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.profile-info strong {
+  color: #61dafb;
+  margin-right: 8px;
+}
+
+.qrcode-actions {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.qrcode-instructions {
+  width: 100%;
+  padding: 15px;
+  background-color: rgba(97, 218, 251, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(97, 218, 251, 0.3);
+  text-align: center;
+}
+
+.qrcode-instructions p {
+  margin: 8px 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  line-height: 1.5;
+}

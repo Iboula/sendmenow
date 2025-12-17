@@ -5,11 +5,9 @@ import PhotoSendPage from './PhotoSendPage';
 import ForgotPasswordPage from './ForgotPasswordPage';
 import ResetPasswordPage from './ResetPasswordPage';
 import ReceivedMessagesPage from './ReceivedMessagesPage';
-<<<<<<< HEAD
+import ProfileQRCodePage from './ProfileQRCodePage';
 import API_BASE_URL from './config';
-=======
 import TermsAndConditionsPage from './TermsAndConditionsPage';
->>>>>>> f632ae6a63eabe4b5c0d32c678b18e88ae2aebed
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
@@ -151,6 +149,16 @@ function App() {
     );
   }
 
+  // Profile QR Code Page
+  if (isAuthenticated && loggedInUser && currentPage === 'profile-qrcode') {
+    return (
+      <ProfileQRCodePage
+        loggedInUser={loggedInUser}
+        onBack={() => setCurrentPage('dashboard')}
+      />
+    );
+  }
+
   // Dashboard/Welcome screen for authenticated users
   if (isAuthenticated && loggedInUser && currentPage === 'dashboard') {
     return (
@@ -171,6 +179,12 @@ function App() {
               className="submit-button"
             >
               View Received Messages
+            </button>
+            <button 
+              onClick={() => setCurrentPage('profile-qrcode')} 
+              className="submit-button"
+            >
+              My Profile QR Code
             </button>
             <button onClick={handleLogout} className="submit-button">
               Logout
