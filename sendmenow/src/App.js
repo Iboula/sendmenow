@@ -6,6 +6,7 @@ import ForgotPasswordPage from './ForgotPasswordPage';
 import ResetPasswordPage from './ResetPasswordPage';
 import ReceivedMessagesPage from './ReceivedMessagesPage';
 import ProfileQRCodePage from './ProfileQRCodePage';
+import MarketPage from './MarketPage';
 import API_BASE_URL from './config';
 import TermsAndConditionsPage from './TermsAndConditionsPage';
 
@@ -159,6 +160,16 @@ function App() {
     );
   }
 
+  // Market Page
+  if (isAuthenticated && loggedInUser && currentPage === 'market') {
+    return (
+      <MarketPage
+        loggedInUser={loggedInUser}
+        onBack={() => setCurrentPage('dashboard')}
+      />
+    );
+  }
+
   // Dashboard/Welcome screen for authenticated users
   if (isAuthenticated && loggedInUser && currentPage === 'dashboard') {
     return (
@@ -185,6 +196,12 @@ function App() {
               className="submit-button"
             >
               My Profile QR Code
+            </button>
+            <button 
+              onClick={() => setCurrentPage('market')} 
+              className="submit-button"
+            >
+              Marketplace
             </button>
             <button onClick={handleLogout} className="submit-button">
               Logout
