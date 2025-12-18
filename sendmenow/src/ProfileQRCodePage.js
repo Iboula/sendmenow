@@ -135,3 +135,4 @@ function ProfileQRCodePage({ loggedInUser, onBack }) {
 
 export default ProfileQRCodePage;
 
+
