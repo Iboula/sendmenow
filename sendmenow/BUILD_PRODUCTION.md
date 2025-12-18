@@ -68,3 +68,4 @@ If the build fails:
 2. Check for syntax errors in the code
 3. Verify Node.js version is 14 or higher
 4. Check the console for specific error messages
+
