@@ -9,25 +9,14 @@ To create a production build of the SendMeNow application:
 npm install
 ```
 
-### 2. Set Production API URL (Optional)
-For production deployment, set the `REACT_APP_API_URL` environment variable:
+### 2. Configure Production API URL
+Edit the `.env.production` file in the root directory and set your production API URL:
 
-**Windows (PowerShell):**
-```powershell
-$env:REACT_APP_API_URL="https://your-production-api.com"
-npm run build
+```env
+REACT_APP_API_URL=https://your-production-api-url.com
 ```
 
-**Windows (CMD):**
-```cmd
-set REACT_APP_API_URL=https://your-production-api.com
-npm run build
-```
-
-**Linux/Mac:**
-```bash
-REACT_APP_API_URL=https://your-production-api.com npm run build
-```
+**Note:** The `.env.production` file is automatically used by Create React App when running `npm run build`. You can also set the variable inline if preferred (see `ENV_PRODUCTION.md` for details).
 
 If `REACT_APP_API_URL` is not set, it will default to `http://localhost:5000` (for development).
 
