@@ -23,15 +23,28 @@ const corsOptions = {
       callback(null, true);
     } else {
       // In production, specify allowed origins
+      const frontendUrl = process.env.FRONTEND_URL || 'https://sendmenow.ca';
+      
+      // Build list of allowed origins (handle www and non-www, http and https)
       const allowedOrigins = [
         'http://localhost:3000',
         'http://localhost:3001',
-        process.env.FRONTEND_URL
+        frontendUrl,
+        frontendUrl.replace('https://', 'http://'), // HTTP version
+        frontendUrl.replace(/^https?:\/\/(www\.)?/, 'https://'), // With www
+        frontendUrl.replace(/^https?:\/\/(www\.)?/, 'https://www.'), // Add www
+        frontendUrl.replace(/^https?:\/\/(www\.)?/, 'http://'), // HTTP with www
+        frontendUrl.replace(/^https?:\/\/(www\.)?/, 'http://www.') // HTTP www
       ].filter(Boolean);
       
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      // Also allow if origin matches the domain (handles subdomains and variations)
+      const frontendDomain = frontendUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+      const originDomain = origin.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+      
+      if (allowedOrigins.indexOf(origin) !== -1 || originDomain === frontendDomain) {
         callback(null, true);
       } else {
+        console.warn(`CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(', ')}`);
         callback(new Error('Not allowed by CORS'));
       }
     }
