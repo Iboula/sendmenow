@@ -9,6 +9,7 @@ import ProfileQRCodePage from './ProfileQRCodePage';
 import MarketPage from './MarketPage';
 import API_BASE_URL from './config';
 import TermsAndConditionsPage from './TermsAndConditionsPage';
+import { safeJsonParse } from './apiUtils';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
@@ -72,7 +73,7 @@ function App() {
         }),
       });
 
-      const data = await response.json();
+      const data = await safeJsonParse(response);
 
       if (response.ok) {
         setMessage('User registered successfully! Please login.');
@@ -90,7 +91,8 @@ function App() {
       }
     } catch (error) {
       console.error('Error:', error);
-      setMessage('Failed to connect to server. Please make sure the backend server is running.');
+      // Use the error message from safeJsonParse which provides better context
+      setMessage(error.message || 'Failed to connect to server. Please make sure the backend server is running.');
     } finally {
       setIsLoading(false);
     }
