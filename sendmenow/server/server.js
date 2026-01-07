@@ -53,6 +53,20 @@ app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Ensure all JSON responses have proper Content-Type header
+app.use((req, res, next) => {
+  // Store original json method
+  const originalJson = res.json;
+  
+  // Override json method to always set Content-Type
+  res.json = function(data) {
+    res.setHeader('Content-Type', 'application/json');
+    return originalJson.call(this, data);
+  };
+  
+  next();
+});
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -1111,6 +1125,58 @@ if (CLEANUP_INTERVAL > 0) {
 // Run cleanup immediately on server start (optional - can be removed if you only want scheduled cleanup)
 // Uncomment the line below if you want to run cleanup on server startup
 // cleanupOldMessages();
+
+// Multer error handler - handles file upload errors (must be before general error handler)
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    // Multer errors (file size, etc.)
+    res.setHeader('Content-Type', 'application/json');
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 10MB.'
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err.message || 'File upload error'
+    });
+  }
+  // Pass other errors to the general error handler
+  next(err);
+});
+
+// Global error handler middleware - ensures all errors return JSON
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  
+  // Set Content-Type header for error responses
+  res.setHeader('Content-Type', 'application/json');
+  
+  // Handle file upload errors (non-multer)
+  if (err.message && (err.message.includes('Only image files') || err.message.includes('file'))) {
+    return res.status(400).json({
+      success: false,
+      message: err.message || 'File upload error'
+    });
+  }
+  
+  // Send JSON error response
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// 404 handler - ensures 404 responses are JSON
+app.use((req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
 
 // Start server
 app.listen(PORT, () => {
