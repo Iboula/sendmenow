@@ -12,55 +12,101 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS Configuration
+// CORS Configuration using cors middleware
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (like mobile apps, curl, or Postman)
+    if (!origin) {
+      return callback(null, true);
+    }
     
-    // Allow all origins in development, or specify allowed origins in production
+    // In development, allow all origins
     if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+      return callback(null, true);
+    }
+    
+    // In production, check against allowed origins
+    const frontendUrl = process.env.FRONTEND_URL || 'https://sendmenow.ca';
+    
+    // Build list of allowed origins
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002'
+    ];
+    
+    // Parse and add frontend URL variations
+    if (frontendUrl) {
+      try {
+        // Extract protocol and hostname
+        const match = frontendUrl.match(/^(https?):\/\/([^\/]+)/);
+        if (match) {
+          const [, protocol, hostname] = match;
+          const baseUrl = `${protocol}://${hostname}`;
+          
+          allowedOrigins.push(baseUrl);
+          
+          // Add www variations if it's a domain (not IP)
+          if (!/^\d+\.\d+\.\d+\.\d+/.test(hostname)) {
+            if (hostname.startsWith('www.')) {
+              allowedOrigins.push(`${protocol}://${hostname.replace('www.', '')}`);
+            } else {
+              allowedOrigins.push(`${protocol}://www.${hostname}`);
+            }
+            
+            // Add opposite protocol version for domains
+            const altProtocol = protocol === 'https' ? 'http' : 'https';
+            allowedOrigins.push(`${altProtocol}://${hostname}`);
+            if (hostname.startsWith('www.')) {
+              allowedOrigins.push(`${altProtocol}://${hostname.replace('www.', '')}`);
+            } else {
+              allowedOrigins.push(`${altProtocol}://www.${hostname}`);
+            }
+          } else {
+            // For IP addresses, add both http and https
+            const altProtocol = protocol === 'https' ? 'http' : 'https';
+            allowedOrigins.push(`${altProtocol}://${hostname}`);
+          }
+        } else {
+          allowedOrigins.push(frontendUrl);
+        }
+      } catch (error) {
+        console.error('Error parsing FRONTEND_URL:', error);
+        allowedOrigins.push(frontendUrl);
+      }
+    }
+    
+    // Remove duplicates
+    const uniqueOrigins = [...new Set(allowedOrigins)];
+    
+    // Check if origin is allowed
+    if (uniqueOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      // In production, specify allowed origins
-      const frontendUrl = process.env.FRONTEND_URL || 'https://sendmenow.ca';
-      
-      // Build list of allowed origins (handle www and non-www, http and https)
-      const allowedOrigins = [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        frontendUrl,
-        frontendUrl.replace('https://', 'http://'), // HTTP version
-        frontendUrl.replace(/^https?:\/\/(www\.)?/, 'https://'), // With www
-        frontendUrl.replace(/^https?:\/\/(www\.)?/, 'https://www.'), // Add www
-        frontendUrl.replace(/^https?:\/\/(www\.)?/, 'http://'), // HTTP with www
-        frontendUrl.replace(/^https?:\/\/(www\.)?/, 'http://www.') // HTTP www
-      ].filter(Boolean);
-      
-      // Also allow if origin matches the domain (handles subdomains and variations)
-      const frontendDomain = frontendUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
-      const originDomain = origin.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
-      
-      if (allowedOrigins.indexOf(origin) !== -1 || originDomain === frontendDomain) {
-        callback(null, true);
-      } else {
-        console.warn(`CORS blocked origin: ${origin}. Allowed: ${allowedOrigins.join(', ')}`);
-        callback(new Error('Not allowed by CORS'));
-      }
+      // Log blocked origin for debugging
+      console.warn(`CORS: Blocked origin "${origin}". Allowed origins:`, uniqueOrigins);
+      callback(new Error(`Not allowed by CORS policy. Origin: ${origin}`));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
+  ],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400, // 24 hours - cache preflight requests
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
-// Enable CORS with options
+// Apply CORS middleware to all routes
 app.use(cors(corsOptions));
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
 
 // Middleware
 app.use(express.json());
