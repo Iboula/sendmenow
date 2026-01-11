@@ -26,7 +26,7 @@ const corsOptions = {
     }
     
     // In production, check against allowed origins
-    const frontendUrl = process.env.FRONTEND_URL || 'https://sendmenow.ca';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://sendmenow.ca';
     
     // Build list of allowed origins
     const allowedOrigins = [
@@ -1231,9 +1231,21 @@ app.use((err, req, res, next) => {
 // 404 handler - ensures 404 responses are JSON
 app.use((req, res) => {
   res.setHeader('Content-Type', 'application/json');
+  console.warn(`404 - Route not found: ${req.method} ${req.path}`);
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    message: `Route not found: ${req.method} ${req.path}`,
+    availableRoutes: [
+      'GET /api/health',
+      'POST /api/users',
+      'POST /api/login',
+      'POST /api/send-photo',
+      'POST /api/forgot-password',
+      'POST /api/reset-password',
+      'GET /api/received-messages',
+      'GET /api/message-photo/:messageId',
+      'GET /api/user-profile-qrcode/:userId'
+    ]
   });
 });
 
