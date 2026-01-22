@@ -26,7 +26,7 @@ const corsOptions = {
     }
     
     // In production, check against allowed origins
-    const frontendUrl = process.env.FRONTEND_URL || 'http://sendmenow.ca';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://www.sendmenow.ca';
     
     // Build list of allowed origins
     const allowedOrigins = [
