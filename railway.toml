@@ -1,7 +1,0 @@
-[build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile.frontend"
-
-[deploy]
-startCommand = "nginx -g 'daemon off;'"
-restartPolicyType = "ON_FAILURE"
