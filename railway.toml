@@ -1,6 +1,7 @@
 [build]
-builder = "NIXPACKS"
+builder = "dockerfile"
+dockerfilePath = "sendmenow/Dockerfile"
 
 [deploy]
-startCommand = "node sendmenow/server/index.js"
+startCommand = "nginx -g 'daemon off;'"
 restartPolicyType = "ON_FAILURE"

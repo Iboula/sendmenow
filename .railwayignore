@@ -1,0 +1,8 @@
+sendmenow/server/
+*.md
+!README.md
+*.ps1
+.git/
+.github/
+.dockerignore
+docker-compose.yml
