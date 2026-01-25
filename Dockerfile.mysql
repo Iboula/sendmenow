@@ -1,0 +1,11 @@
+# MySQL Service for Railway
+FROM mysql:8.0
+
+# Set environment variables
+ENV MYSQL_ROOT_PASSWORD=changeme
+ENV MYSQL_DATABASE=sendmenow_db
+
+# Copy initialization scripts
+COPY sendmenow/server/database.sql /docker-entrypoint-initdb.d/01-init.sql
+
+EXPOSE 3306
