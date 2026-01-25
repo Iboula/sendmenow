@@ -1,0 +1,15 @@
+# .dockerignore for Backend
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+*.md
+README.md
+.vscode
+.idea
+*.log
+.DS_Store
+database.sql
+migrate_add_photo_blob.sql

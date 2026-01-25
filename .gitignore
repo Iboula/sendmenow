@@ -416,3 +416,16 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Docker
+.env
+.env.local
+docker-compose.override.yml
+
+# PowerShell scripts
+*.ps1
+
+# Markdown files (except README)
+*.md
+!README.md
+!**/README.md

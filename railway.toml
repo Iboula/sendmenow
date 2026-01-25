@@ -1,0 +1,7 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "sendmenow/Dockerfile"
+
+[deploy]
+startCommand = "nginx -g 'daemon off;'"
+restartPolicyType = "ON_FAILURE"
