@@ -4,14 +4,14 @@ FROM node:18-alpine AS builder
 WORKDIR /build
 
 # Copy package files
-COPY sendmenow/package*.json ./
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy source code
-COPY sendmenow/public/ ./public/
-COPY sendmenow/src/ ./src/
+COPY public ./public
+COPY src ./src
 
 # Build
 RUN npm run build
@@ -20,7 +20,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy nginx config
-COPY sendmenow/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built app
 COPY --from=builder /build/build /usr/share/nginx/html
