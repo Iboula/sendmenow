@@ -1,4 +1,4 @@
-# Frontend Service for Railway (Root Directory = sendmenow)
+# Frontend for Railway (Root Directory: sendmenow)
 FROM node:18-alpine AS builder
 
 WORKDIR /build
