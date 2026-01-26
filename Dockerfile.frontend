@@ -1,17 +1,17 @@
-# Frontend Service for Railway
+# Frontend Service for Railway (Root Directory = sendmenow)
 FROM node:18-alpine AS builder
 
 WORKDIR /build
 
-# Copy frontend package files
-COPY sendmenow/package*.json ./
+# Copy package files
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy frontend source
-COPY sendmenow/public/ ./public/
-COPY sendmenow/src/ ./src/
+# Copy source code
+COPY public/ ./public/
+COPY src/ ./src/
 
 # Build
 RUN npm run build
@@ -19,8 +19,8 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
-# Copy nginx config from sendmenow directory
-COPY sendmenow/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built app
 COPY --from=builder /build/build /usr/share/nginx/html
