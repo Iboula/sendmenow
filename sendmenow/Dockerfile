@@ -1,35 +1,30 @@
-# Frontend Dockerfile for SendMeNow React Application
-# Multi-stage build for optimized production image
-
-# Stage 1: Build the React application
+# Frontend Service for Railway (Root Directory = sendmenow)
 FROM node:18-alpine AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 # Copy package files
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install --omit=dev
+RUN npm install
 
 # Copy source code
 COPY public/ ./public/
 COPY src/ ./src/
 
-# Build the application
+# Build
 RUN npm run build
 
-# Stage 2: Serve the application with nginx
+# Production stage
 FROM nginx:alpine
 
-# Copy custom nginx configuration
+# Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built files from builder stage
-COPY --from=builder /app/build /usr/share/nginx/html
+# Copy built app
+COPY --from=builder /build/build /usr/share/nginx/html
 
-# Expose port 80
 EXPOSE 80
 
-# Start nginx
 CMD ["nginx", "-g", "daemon off;"]
