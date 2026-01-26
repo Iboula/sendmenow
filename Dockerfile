@@ -1,28 +1,29 @@
-# Frontend pour Railway
+# ---------- Build stage ----------
 FROM node:18-alpine AS builder
 
 WORKDIR /build
 
-# Copy package files
+# Copier les fichiers package
 COPY sendmenow/package*.json ./
 
-# Install dependencies
+# Installer les dépendances
 RUN npm install
 
-# Copy source code
+# Copier le code source
 COPY sendmenow/public ./public
 COPY sendmenow/src ./src
 
-# Build
+# Build frontend (React / Vite / CRA)
 RUN npm run build
 
-# Production stage
+# ---------- Production stage ----------
 FROM nginx:alpine
 
-# Copy nginx config
+# Copier la config nginx
 COPY sendmenow/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built app
+# Copier le résultat du build
+# (⚠️ le dossier est généralement /build/build)
 COPY --from=builder /build/build /usr/share/nginx/html
 
 EXPOSE 80
