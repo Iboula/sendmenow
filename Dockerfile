@@ -3,14 +3,14 @@ FROM node:18-alpine AS builder
 
 WORKDIR /build
 
+# DEBUG: Afficher le contenu de la racine du contexte avant toute commande COPY
+RUN echo "=== Contenu de la racine du contexte Docker ===" && ls -laR / | head -100
+
 # Copier les fichiers package
 COPY sendmenow/package*.json ./
 
 # Installer les dépendances
 RUN npm install
-
-# DEBUG: Afficher le contenu de la racine du contexte
-RUN echo "=== Contenu de la racine du contexte Docker ===" && ls -la /
 
 # Copier le code source
 COPY sendmenow/public ./public
