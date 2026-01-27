@@ -3,7 +3,14 @@
   "build": {
     "builder": "dockerfile",
     "dockerfilePath": "sendmenow/Dockerfile",
-    "buildContext": "sendmenow"
+    "buildContext": "sendmenow",
+    "watchPatterns": [
+      "src/**",
+      "public/**",
+      "package*.json",
+      "nginx.conf",
+      "Dockerfile"
+    ]
   },
   "deploy": {
     "startCommand": "nginx -g 'daemon off;'",
