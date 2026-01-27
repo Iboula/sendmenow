@@ -3,7 +3,6 @@
   "build": {
     "builder": "dockerfile",
     "dockerfilePath": "sendmenow/Dockerfile",
-    "watchPatterns": ["sendmenow/**"],
     "buildContext": "sendmenow"
   },
   "deploy": {
