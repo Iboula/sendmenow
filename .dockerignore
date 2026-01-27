@@ -1,0 +1,36 @@
+# .dockerignore à la racine pour le build frontend
+
+# Exclure les node_modules et build artifacts (mais les inclure depuis sendmenow/)
+**/node_modules
+**/.git
+**/.gitignore
+**/*.log
+**/.DS_Store
+**/.vscode
+**/.idea
+**/coverage
+
+# Exclure tout sauf sendmenow/ et les fichiers à la racine nécessaires
+*
+!sendmenow/
+!Dockerfile
+!package.json
+
+# Dans sendmenow/, exclure certains fichiers/dossiers
+sendmenow/node_modules
+sendmenow/build
+sendmenow/.env.local
+sendmenow/.env.development.local
+sendmenow/.env.test.local
+sendmenow/.env.production.local
+
+# Inclure les fichiers nécessaires de sendmenow
+!sendmenow/public/
+!sendmenow/src/
+!sendmenow/package.json
+!sendmenow/package-lock.json
+!sendmenow/nginx.conf
+
+# Exclure le backend et autres dossiers inutiles
+sendmenow/server/
+sendmenow_project/
