@@ -1,0 +1,6 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "railway": true,
+        "docker build": true
+    }
+}
