@@ -9,6 +9,9 @@ COPY sendmenow/package*.json ./
 # Installer les dépendances
 RUN npm install
 
+# DEBUG: Afficher le contenu de la racine du contexte
+RUN echo "=== Contenu de la racine du contexte Docker ===" && ls -la /
+
 # Copier le code source
 COPY sendmenow/public ./public
 COPY sendmenow/src ./src
