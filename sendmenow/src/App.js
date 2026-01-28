@@ -1,67 +1,20 @@
-import { useState, useEffect } from 'react';
+﻿import { useState } from 'react';
 import './App.css';
-import CredentialPage from './CredentialPage';
-import PhotoSendPage from './PhotoSendPage';
-import ForgotPasswordPage from './ForgotPasswordPage';
-import ResetPasswordPage from './ResetPasswordPage';
-import ReceivedMessagesPage from './ReceivedMessagesPage';
-import ProfileQRCodePage from './ProfileQRCodePage';
-import MarketPage from './MarketPage';
-import API_BASE_URL from './config';
-import TermsAndConditionsPage from './TermsAndConditionsPage';
-import { safeJsonParse } from './apiUtils';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('login'); // 'login', 'register', or 'dashboard'
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState(null);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userPassword, setUserPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
 
-  // Check for existing authentication and terms acceptance on component mount
-  useEffect(() => {
-    // Check if we're on a reset password page
-    const urlParams = new URLSearchParams(window.location.search);
-    const resetToken = urlParams.get('token');
-    const resetEmail = urlParams.get('email');
-    
-    if (resetToken && resetEmail) {
-      setCurrentPage('reset-password');
-      return;
-    }
-
-    // Check if terms have been accepted
-    const accepted = localStorage.getItem('termsAccepted') === 'true';
-    setTermsAccepted(accepted);
-
-    const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('token');
-    
-    if (savedUser && savedToken) {
-      try {
-        const user = JSON.parse(savedUser);
-        setIsAuthenticated(true);
-        setLoggedInUser(user);
-        setCurrentPage('dashboard');
-      } catch (error) {
-        console.error('Error parsing saved user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-      }
-    }
-  }, []);
-
-  const handleRegister = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setMessage('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users`, {
+      const response = await fetch('http://localhost:5000/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,202 +26,30 @@ function App() {
         }),
       });
 
-      const data = await safeJsonParse(response);
+      const data = await response.json();
 
       if (response.ok) {
-        setMessage('User registered successfully! Please login.');
+        setMessage('User registered successfully!');
         // Reset form
         setUserName('');
         setUserEmail('');
         setUserPassword('');
-        // Switch to login page after 2 seconds
-        setTimeout(() => {
-          setCurrentPage('login');
-          setMessage('');
-        }, 2000);
       } else {
         setMessage(data.message || 'Error registering user');
       }
     } catch (error) {
       console.error('Error:', error);
-      // Use the error message from safeJsonParse which provides better context
-      setMessage(error.message || 'Failed to connect to server. Please make sure the backend server is running.');
+      setMessage('Failed to connect to server. Please make sure the backend server is running.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogin = (user, token) => {
-    // Save to localStorage
-    localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('token', token);
-    
-    // Update state
-    setIsAuthenticated(true);
-    setLoggedInUser(user);
-    setCurrentPage('dashboard');
-  };
-
-  const handleLogout = () => {
-    // Clear localStorage
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    localStorage.removeItem('termsAccepted');
-    localStorage.removeItem('termsAcceptedDate');
-    
-    // Reset state
-    setIsAuthenticated(false);
-    setLoggedInUser(null);
-    setTermsAccepted(false);
-    setCurrentPage('login');
-    setUserName('');
-    setUserEmail('');
-    setUserPassword('');
-    setMessage('');
-  };
-
-  const handleTermsAccept = () => {
-    setTermsAccepted(true);
-    setCurrentPage('login');
-  };
-
-  // Photo Send Page
-  if (isAuthenticated && loggedInUser && currentPage === 'send-photo') {
-    return (
-      <PhotoSendPage
-        loggedInUser={loggedInUser}
-        onBack={() => setCurrentPage('dashboard')}
-      />
-    );
-  }
-
-  // Received Messages Page
-  if (isAuthenticated && loggedInUser && currentPage === 'received-messages') {
-    return (
-      <ReceivedMessagesPage
-        loggedInUser={loggedInUser}
-        onBack={() => setCurrentPage('dashboard')}
-      />
-    );
-  }
-
-  // Profile QR Code Page
-  if (isAuthenticated && loggedInUser && currentPage === 'profile-qrcode') {
-    return (
-      <ProfileQRCodePage
-        loggedInUser={loggedInUser}
-        onBack={() => setCurrentPage('dashboard')}
-      />
-    );
-  }
-
-  // Market Page
-  if (isAuthenticated && loggedInUser && currentPage === 'market') {
-    return (
-      <MarketPage
-        loggedInUser={loggedInUser}
-        onBack={() => setCurrentPage('dashboard')}
-      />
-    );
-  }
-
-  // Dashboard/Welcome screen for authenticated users
-  if (isAuthenticated && loggedInUser && currentPage === 'dashboard') {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <h1>Welcome, {loggedInUser.userName}!</h1>
-          <div className="welcome-container">
-            <p>Email: {loggedInUser.userEmail}</p>
-            <p>User ID: {loggedInUser.id}</p>
-            <button 
-              onClick={() => setCurrentPage('send-photo')} 
-              className="submit-button"
-            >
-              Send Photo with Message
-            </button>
-            <button 
-              onClick={() => setCurrentPage('received-messages')} 
-              className="submit-button"
-            >
-              View Received Messages
-            </button>
-            <button 
-              onClick={() => setCurrentPage('profile-qrcode')} 
-              className="submit-button"
-            >
-              My Profile QR Code
-            </button>
-            <button 
-              onClick={() => setCurrentPage('market')} 
-              className="submit-button"
-            >
-              Marketplace
-            </button>
-            <button onClick={handleLogout} className="submit-button">
-              Logout
-            </button>
-          </div>
-        </header>
-      </div>
-    );
-  }
-
-  // Reset Password Page - Check before terms page to allow password reset flow
-  if (currentPage === 'reset-password') {
-    return (
-      <ResetPasswordPage
-        onBack={() => {
-          setCurrentPage('login');
-          // Clear URL parameters
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }}
-      />
-    );
-  }
-
-  // Terms and Conditions Page - Show first if not authenticated and terms not accepted
-  if (!isAuthenticated && !termsAccepted) {
-    return (
-      <TermsAndConditionsPage onAccept={handleTermsAccept} />
-    );
-  }
-
-  // Forgot Password Page
-  if (currentPage === 'forgot-password') {
-    return (
-      <ForgotPasswordPage
-        onBack={() => {
-          setCurrentPage('login');
-          setMessage('');
-        }}
-      />
-    );
-  }
-
-  // Show CredentialPage (Login) if on login page
-  if (currentPage === 'login') {
-    return (
-      <CredentialPage 
-        onLogin={handleLogin}
-        onSwitchToRegister={() => {
-          setCurrentPage('register');
-          setMessage('');
-        }}
-        onForgotPassword={() => {
-          setCurrentPage('forgot-password');
-          setMessage('');
-        }}
-      />
-    );
-  }
-
-  // Registration form
   return (
     <div className="App">
       <header className="App-header">
-        <h1>User Registration</h1>
-        <form onSubmit={handleRegister} className="form-container">
+        <h1>User Registration Form</h1>
+        <form onSubmit={handleSubmit} className="form-container">
           <div className="form-group">
             <label htmlFor="userName">User Name:</label>
             <input
@@ -277,7 +58,6 @@ function App() {
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
               required
-              autoComplete="username"
             />
           </div>
           <div className="form-group">
@@ -288,31 +68,26 @@ function App() {
               value={userEmail}
               onChange={(e) => setUserEmail(e.target.value)}
               required
-              autoComplete="email"
             />
           </div>
           <div className="form-group">
-            <label htmlFor="userPassword">Password:</label>
+            <label htmlFor="userPassword">User Password:</label>
             <input
               type="password"
               id="userPassword"
               value={userPassword}
               onChange={(e) => setUserPassword(e.target.value)}
               required
-              autoComplete="new-password"
             />
           </div>
           <button type="submit" className="submit-button" disabled={isLoading}>
-            {isLoading ? 'Registering...' : 'Register'}
+            {isLoading ? 'Submitting...' : 'Submit'}
           </button>
           {message && (
             <div className={`message ${message.includes('successfully') ? 'success' : 'error'}`}>
               {message}
             </div>
           )}
-          <div className="switch-link">
-            <p>Already have an account? <button type="button" onClick={() => setCurrentPage('login')} className="link-button">Login here</button></p>
-          </div>
         </form>
       </header>
     </div>
@@ -320,5 +95,3 @@ function App() {
 }
 
 export default App;
-#   T r i g g e r   1 8 5 2 0 7  
- 
